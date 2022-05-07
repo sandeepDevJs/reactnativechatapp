@@ -9,6 +9,10 @@ import {
 } from 'react-native-gifted-chat';
 import {Input, IconButton, ChevronRightIcon} from 'native-base';
 import {ImageBackground, View} from 'react-native';
+import firestore from '@react-native-firebase/firestore';
+
+const user_id = 404;
+const vendor_id = 302;
 
 const ChatBubble = props => (
   <Bubble
@@ -34,7 +38,6 @@ const CustomComposer = props => (
       marginRight: 4,
       marginBottom: 7,
     }}
-    onInputSizeChanged={d => console.log(d)}
   />
 );
 
@@ -77,26 +80,60 @@ export function Example() {
   const [messages, setMessages] = useState([]);
 
   useEffect(() => {
-    setMessages([
-      {
-        _id: 1,
-        text: 'Hello sandeep',
-        createdAt: new Date(),
-        user: {
-          _id: 2,
-          name: 'React Native',
-          avatar: 'https://placeimg.com/140/140/any',
-        },
-      },
-    ]);
+    const doc_id = `${vendor_id}-${user_id}`;
+    const msgRef = firestore()
+      .collection('chatrooms')
+      .doc(doc_id)
+      .collection('messages')
+      .orderBy('createdAt', 'desc');
+
+    msgRef.onSnapshot(querySnap => {
+      const allMsgs = querySnap.docs.map(docSnap => {
+        let data = docSnap.data();
+
+        if (data.createdAt) {
+          return {
+            ...data,
+            createdAt: data.createdAt.toDate(),
+          };
+        }
+        return {
+          ...data,
+          createdAt: new Date(),
+        };
+      });
+
+      setMessages(allMsgs);
+    });
   }, []);
 
-  const onSend = useCallback((messages = []) => {
+  const onSend = useCallback((messageArr = []) => {
+    const msgObj = messageArr[0];
+
+    if (!msgObj) {
+      return null;
+    }
+
+    const message = {
+      ...msgObj,
+      createdAt: new Date(),
+      sent: true,
+      received: false,
+      pending: false,
+      sentBy: 'vendor',
+      receivedBy: 'user',
+    };
+
+    const doc_id = `${vendor_id}-${user_id}`;
+
+    firestore()
+      .collection('chatrooms')
+      .doc(doc_id)
+      .collection('messages')
+      .add({...message, createdAt: firestore.FieldValue.serverTimestamp()});
+
     setMessages(previousMessages =>
-      GiftedChat.append(
-        previousMessages,
-        messages.map(d => ({...d})),
-      ),
+      GiftedChat.append(previousMessages, message),
     );
   }, []);
 
@@ -112,7 +149,7 @@ export function Example() {
         messages={messages}
         onSend={messages => onSend(messages)}
         user={{
-          _id: 1,
+          _id: user_id,
         }}
         alwaysShowSend
         renderBubble={ChatBubble}

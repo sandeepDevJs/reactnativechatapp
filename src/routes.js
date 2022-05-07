@@ -14,7 +14,7 @@ const Routes = () => {
         <Stack.Screen
           name="chat"
           options={({route}) => ({
-            title: 'John Doe',
+            title: 'Vendor',
             headerBackTitleVisible: false,
           })}
           component={ChatScreen}
